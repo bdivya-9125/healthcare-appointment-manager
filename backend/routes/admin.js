@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
-
+const generateSlotsForDoctor = require('../utils/generateSlots');
 // Create a doctor profile
 router.post('/doctors', requireAuth, requireRole('admin'), async (req, res) => {
   try {
@@ -74,6 +74,15 @@ router.post('/doctors/:id/leave', requireAuth, requireRole('admin'), async (req,
     );
 
     res.json({ success: true, message: 'Leave marked', affected_appointments: affected.rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/doctors/:id/generate-slots', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const count = await generateSlotsForDoctor(req.params.id);
+    res.json({ success: true, message: `Generated up to ${count} slots` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
