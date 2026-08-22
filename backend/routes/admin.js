@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const sendEmail = require('../utils/email');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const generateSlotsForDoctor = require('../utils/generateSlots');
+
 // Create a doctor profile
 router.post('/doctors', requireAuth, requireRole('admin'), async (req, res) => {
   try {
@@ -37,7 +39,7 @@ router.put('/doctors/:id', requireAuth, requireRole('admin'), async (req, res) =
   }
 });
 
-// List all doctors (used by patients to search too, but keep here for now)
+// List all doctors
 router.get('/doctors', async (req, res) => {
   try {
     const { specialisation } = req.query;
@@ -54,7 +56,7 @@ router.get('/doctors', async (req, res) => {
   }
 });
 
-// Mark a doctor on leave
+// Mark a doctor on leave — cancels affected appointments and notifies patients
 router.post('/doctors/:id/leave', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     const { leave_date } = req.body;
@@ -65,13 +67,29 @@ router.post('/doctors/:id/leave', requireAuth, requireRole('admin'), async (req,
       [req.params.id, leave_date]
     );
 
-    // Find affected appointments (we'll handle cancellation + notifications in a later step)
     const affected = await pool.query(
-      `SELECT a.id FROM appointments a
+      `SELECT a.id, u.email, u.name FROM appointments a
        JOIN slots s ON a.slot_id = s.id
+       JOIN users u ON a.patient_id = u.id
        WHERE s.doctor_id=$1 AND s.start_time::date=$2 AND a.status='confirmed'`,
       [req.params.id, leave_date]
     );
+
+    for (const appt of affected.rows) {
+      await pool.query('UPDATE appointments SET status=$1 WHERE id=$2', ['cancelled', appt.id]);
+
+      const emailResult = await sendEmail(
+        appt.email,
+        'Appointment Cancelled - Doctor on Leave',
+        `Hi ${appt.name}, your appointment has been cancelled because the doctor is on leave on ${leave_date}. Please rebook at your convenience.`
+      );
+
+      await pool.query(
+        `INSERT INTO notifications_log(type, recipient, payload, status, retry_count)
+         VALUES ($1,$2,$3,$4,$5)`,
+        ['cancellation', appt.email, JSON.stringify({ appointment_id: appt.id, leave_date }), emailResult.success ? 'sent' : 'failed', emailResult.success ? 0 : 1]
+      );
+    }
 
     res.json({ success: true, message: 'Leave marked', affected_appointments: affected.rows.length });
   } catch (err) {
