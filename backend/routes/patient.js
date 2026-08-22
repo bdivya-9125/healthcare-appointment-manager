@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const redis = require('../redis');
+const sendEmail = require('../utils/email');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { getPreVisitSummary } = require('../utils/llm');
 
@@ -85,6 +86,24 @@ router.post('/slots/:id/confirm', requireAuth, requireRole('patient'), async (re
         'UPDATE appointments SET pre_visit_summary=$1 WHERE id=$2',
         [{ status: 'failed', error: llmErr.message }, apptRes.rows[0].id]
       );
+    }
+
+    // Send booking confirmation email
+    try {
+      const patientRes = await pool.query('SELECT email, name FROM users WHERE id=$1', [req.user.id]);
+      const patient = patientRes.rows[0];
+      const emailResult = await sendEmail(
+        patient.email,
+        'Appointment Confirmed',
+        `Hi ${patient.name}, your appointment has been confirmed. We'll see you soon!`
+      );
+      await pool.query(
+        `INSERT INTO notifications_log(type, recipient, payload, status, retry_count)
+         VALUES ($1,$2,$3,$4,$5)`,
+        ['booking_confirmation', patient.email, JSON.stringify({ appointment_id: apptRes.rows[0].id }), emailResult.success ? 'sent' : 'failed', emailResult.success ? 0 : 1]
+      );
+    } catch (emailErr) {
+      console.error('Booking confirmation email failed:', emailErr.message);
     }
 
     res.json({ success: true, appointment: { ...apptRes.rows[0], pre_visit_summary: preVisitSummary } });
