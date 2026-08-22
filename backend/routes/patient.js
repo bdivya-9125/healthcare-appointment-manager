@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const redis = require('../redis');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { getPreVisitSummary } = require('../utils/llm');
 
 router.get('/doctors', requireAuth, async (req, res) => {
   try {
@@ -71,7 +72,22 @@ router.post('/slots/:id/confirm', requireAuth, requireRole('patient'), async (re
 
     await redis.del(`hold:slot:${slotId}`);
 
-    res.json({ success: true, appointment: apptRes.rows[0] });
+    let preVisitSummary = { status: 'failed' };
+    try {
+      preVisitSummary = await getPreVisitSummary(symptoms || '');
+      await pool.query(
+        'UPDATE appointments SET pre_visit_summary=$1 WHERE id=$2',
+        [preVisitSummary, apptRes.rows[0].id]
+      );
+    } catch (llmErr) {
+      console.error('LLM pre-visit summary failed:', llmErr.message);
+      await pool.query(
+        'UPDATE appointments SET pre_visit_summary=$1 WHERE id=$2',
+        [{ status: 'failed', error: llmErr.message }, apptRes.rows[0].id]
+      );
+    }
+
+    res.json({ success: true, appointment: { ...apptRes.rows[0], pre_visit_summary: preVisitSummary } });
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505') {
