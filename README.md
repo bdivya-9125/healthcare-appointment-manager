@@ -161,6 +161,8 @@ Email notifications are integrated with:
 - Git & GitHub — Version control
 - VS Code — Development
 
+---
+
 ## API Overview
 
 ### Authentication
