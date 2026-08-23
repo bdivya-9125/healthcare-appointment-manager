@@ -21,27 +21,33 @@ export default function DoctorDashboard() {
     }
   };
 
+  const urgencyColor = (u) => u === 'High' ? '#dc2626' : u === 'Medium' ? '#d97706' : '#059669';
+
   return (
-    <div style={{ maxWidth: 700, margin: '40px auto', fontFamily: 'sans-serif' }}>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px', fontFamily: 'sans-serif' }}>
       <h2>Doctor Dashboard</h2>
       {appointments.map(appt => (
-        <div key={appt.id} style={{ border: '1px solid #ccc', padding: 10, marginBottom: 10 }}>
-          <p><b>Patient:</b> {appt.patient_name}</p>
-          <p><b>Time:</b> {new Date(appt.start_time).toLocaleString()}</p>
+        <div key={appt.id} style={{ background: 'white', borderRadius: 12, padding: 20, marginBottom: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <b>{appt.patient_name}</b>
+            {appt.pre_visit_summary?.urgency && (
+              <span style={{ color: urgencyColor(appt.pre_visit_summary.urgency), fontWeight: 700 }}>
+                {appt.pre_visit_summary.urgency} urgency
+              </span>
+            )}
+          </div>
+          <p style={{ color: '#64748b', margin: '4px 0' }}>{new Date(appt.start_time).toLocaleString()}</p>
           <p><b>Symptoms:</b> {appt.symptom_form}</p>
-          {appt.pre_visit_summary?.urgency && (
-            <p><b>Urgency:</b> {appt.pre_visit_summary.urgency}</p>
-          )}
           <textarea
             placeholder="Enter visit notes..."
             onChange={e => setNotes({ ...notes, [appt.id]: e.target.value })}
-            style={{ width: '100%', marginTop: 5 }}
+            style={{ width: '100%', marginTop: 8, marginBottom: 8 }}
             rows={2}
           />
-          <button onClick={() => completeVisit(appt.id)} style={{ marginTop: 5 }}>Complete Visit</button>
+          <button onClick={() => completeVisit(appt.id)}>Complete Visit</button>
         </div>
       ))}
-      {appointments.length === 0 && <p>No confirmed appointments.</p>}
+      {appointments.length === 0 && <p style={{ color: '#94a3b8' }}>No confirmed appointments.</p>}
     </div>
   );
 }

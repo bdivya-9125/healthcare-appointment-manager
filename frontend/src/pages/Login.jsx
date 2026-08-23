@@ -30,27 +30,29 @@ export default function Login() {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto', fontFamily: 'sans-serif' }}>
-      <h2>{isSignup ? 'Sign Up' : 'Login'}</h2>
-      <form onSubmit={handleSubmit}>
-        {isSignup && (
-          <input name="name" placeholder="Name" value={form.name} onChange={handleChange} required style={{ display: 'block', width: '100%', marginBottom: 10, padding: 8 }} />
-        )}
-        <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} required style={{ display: 'block', width: '100%', marginBottom: 10, padding: 8 }} />
-        <input name="password" type="password" placeholder="Password" value={form.password} onChange={handleChange} required style={{ display: 'block', width: '100%', marginBottom: 10, padding: 8 }} />
-        {isSignup && (
-          <select name="role" value={form.role} onChange={handleChange} style={{ display: 'block', width: '100%', marginBottom: 10, padding: 8 }}>
-            <option value="patient">Patient</option>
-            <option value="doctor">Doctor</option>
-            <option value="admin">Admin</option>
-          </select>
-        )}
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit" style={{ width: '100%', padding: 10 }}>{isSignup ? 'Sign Up' : 'Login'}</button>
-      </form>
-      <p onClick={() => setIsSignup(!isSignup)} style={{ cursor: 'pointer', color: 'blue', marginTop: 10 }}>
-        {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign up"}
-      </p>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ maxWidth: 400, width: '90%', fontFamily: 'sans-serif', background: 'white', padding: 40, borderRadius: 16, boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: 24 }}>{isSignup ? 'Create Account' : 'Welcome Back'}</h2>
+        <form onSubmit={handleSubmit}>
+          {isSignup && (
+            <input name="name" placeholder="Name" value={form.name} onChange={handleChange} required style={{ display: 'block', width: '100%', marginBottom: 12 }} />
+          )}
+          <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} required style={{ display: 'block', width: '100%', marginBottom: 12 }} />
+          <input name="password" type="password" placeholder="Password" value={form.password} onChange={handleChange} required style={{ display: 'block', width: '100%', marginBottom: 12 }} />
+          {isSignup && (
+            <select name="role" value={form.role} onChange={handleChange} style={{ display: 'block', width: '100%', marginBottom: 12 }}>
+              <option value="patient">Patient</option>
+              <option value="doctor">Doctor</option>
+              <option value="admin">Admin</option>
+            </select>
+          )}
+          {error && <p style={{ color: '#dc2626', fontSize: 14 }}>{error}</p>}
+          <button type="submit" style={{ width: '100%', padding: 12, marginTop: 8 }}>{isSignup ? 'Sign Up' : 'Login'}</button>
+        </form>
+        <p onClick={() => setIsSignup(!isSignup)} style={{ cursor: 'pointer', color: '#2563eb', marginTop: 16, textAlign: 'center', fontSize: 14 }}>
+          {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign up"}
+        </p>
+      </div>
     </div>
   );
 }

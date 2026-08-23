@@ -29,21 +29,28 @@ export default function AdminDashboard() {
     alert('Slots generated');
   };
 
-  return (
-    <div style={{ maxWidth: 700, margin: '40px auto', fontFamily: 'sans-serif' }}>
-      <h2>Admin Dashboard</h2>
-      <h3>Create Doctor Profile</h3>
-      <input placeholder="User ID" value={form.user_id} onChange={e => setForm({ ...form, user_id: e.target.value })} style={{ display: 'block', marginBottom: 5 }} />
-      <input placeholder="Specialisation" value={form.specialisation} onChange={e => setForm({ ...form, specialisation: e.target.value })} style={{ display: 'block', marginBottom: 5 }} />
-      <button onClick={createDoctor}>Create Doctor</button>
+  const cardStyle = { background: 'white', borderRadius: 12, padding: 20, marginBottom: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' };
 
-      <h3 style={{ marginTop: 20 }}>Doctors</h3>
-      {doctors.map(doc => (
-        <div key={doc.id} style={{ border: '1px solid #ccc', padding: 10, marginBottom: 8 }}>
-          {doc.specialisation} (id: {doc.id})
-          <button onClick={() => generateSlots(doc.id)} style={{ marginLeft: 10 }}>Generate Slots</button>
-        </div>
-      ))}
+  return (
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px', fontFamily: 'sans-serif' }}>
+      <h2>Admin Dashboard</h2>
+
+      <div style={cardStyle}>
+        <h3>Create Doctor Profile</h3>
+        <input placeholder="User ID" value={form.user_id} onChange={e => setForm({ ...form, user_id: e.target.value })} style={{ display: 'block', width: '100%', marginBottom: 10 }} />
+        <input placeholder="Specialisation" value={form.specialisation} onChange={e => setForm({ ...form, specialisation: e.target.value })} style={{ display: 'block', width: '100%', marginBottom: 10 }} />
+        <button onClick={createDoctor}>Create Doctor</button>
+      </div>
+
+      <div style={cardStyle}>
+        <h3>Doctors</h3>
+        {doctors.map(doc => (
+          <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
+            <span>{doc.specialisation} (id: {doc.id})</span>
+            <button onClick={() => generateSlots(doc.id)}>Generate Slots</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

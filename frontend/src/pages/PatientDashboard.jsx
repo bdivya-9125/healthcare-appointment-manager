@@ -46,39 +46,47 @@ export default function PatientDashboard() {
     window.open(res.data.authUrl, '_blank');
   };
 
+  const cardStyle = { background: 'white', borderRadius: 12, padding: 20, marginBottom: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' };
+
   return (
-    <div style={{ maxWidth: 700, margin: '40px auto', fontFamily: 'sans-serif' }}>
-      <h2>Patient Dashboard</h2>
-      <button onClick={connectCalendar}>Connect Google Calendar</button>
-      <h3>Doctors</h3>
-      {doctors.map(doc => (
-        <div key={doc.id} style={{ border: '1px solid #ccc', padding: 10, marginBottom: 8 }}>
-          <b>{doc.specialisation}</b>
-          <button onClick={() => viewSlots(doc.id)} style={{ marginLeft: 10 }}>View Slots</button>
-        </div>
-      ))}
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 style={{ margin: 0 }}>Patient Dashboard</h2>
+        <button onClick={connectCalendar} style={{ background: '#059669' }}>Connect Google Calendar</button>
+      </div>
+
+      <div style={cardStyle}>
+        <h3>Doctors</h3>
+        {doctors.map(doc => (
+          <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
+            <b>{doc.specialisation}</b>
+            <button onClick={() => viewSlots(doc.id)}>View Slots</button>
+          </div>
+        ))}
+      </div>
 
       {selectedDoctor && (
-        <div>
+        <div style={cardStyle}>
           <h3>Open Slots</h3>
           {slots.map(slot => (
-            <div key={slot.id} style={{ marginBottom: 5 }}>
-              {new Date(slot.start_time).toLocaleString()}
-              <button onClick={() => holdSlot(slot.id)} style={{ marginLeft: 10 }}>Hold</button>
+            <div key={slot.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <span>{new Date(slot.start_time).toLocaleString()}</span>
+              <button onClick={() => holdSlot(slot.id)}>Hold</button>
             </div>
           ))}
+          {slots.length === 0 && <p style={{ color: '#94a3b8' }}>No open slots.</p>}
         </div>
       )}
 
       {selectedSlot && (
-        <div style={{ marginTop: 20 }}>
+        <div style={cardStyle}>
           <h3>Enter Symptoms</h3>
-          <textarea value={symptoms} onChange={e => setSymptoms(e.target.value)} rows={3} style={{ width: '100%' }} />
-          <button onClick={confirmBooking} style={{ marginTop: 10 }}>Confirm Booking</button>
+          <textarea value={symptoms} onChange={e => setSymptoms(e.target.value)} rows={3} style={{ width: '100%', marginBottom: 12 }} />
+          <button onClick={confirmBooking}>Confirm Booking</button>
         </div>
       )}
 
-      {message && <p style={{ marginTop: 20, fontWeight: 'bold' }}>{message}</p>}
+      {message && <div style={{ ...cardStyle, background: '#eff6ff', color: '#1e40af', fontWeight: 600 }}>{message}</div>}
     </div>
   );
 }
