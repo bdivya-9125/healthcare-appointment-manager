@@ -1,4 +1,3 @@
-﻿````md
 # Healthcare Appointment & Follow-up Manager
 
 ## Live Demo
