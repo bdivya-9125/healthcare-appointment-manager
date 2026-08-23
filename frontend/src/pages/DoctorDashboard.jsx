@@ -4,6 +4,7 @@ import api from '../api';
 export default function DoctorDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [notes, setNotes] = useState({});
+  const [prescriptions, setPrescriptions] = useState({});
 
   const loadAppointments = () => {
     api.get('/doctor/appointments').then(res => setAppointments(res.data.appointments));
@@ -13,7 +14,10 @@ export default function DoctorDashboard() {
 
   const completeVisit = async (id) => {
     try {
-      await api.post(`/doctor/appointments/${id}/complete`, { notes: notes[id] || '' });
+      await api.post(`/doctor/appointments/${id}/complete`, {
+        notes: notes[id] || '',
+        prescription: prescriptions[id] || '',
+      });
       alert('Visit completed');
       loadAppointments();
     } catch (err) {
@@ -41,6 +45,12 @@ export default function DoctorDashboard() {
           <textarea
             placeholder="Enter visit notes..."
             onChange={e => setNotes({ ...notes, [appt.id]: e.target.value })}
+            style={{ width: '100%', marginTop: 8, marginBottom: 8 }}
+            rows={2}
+          />
+          <textarea
+            placeholder="Enter prescription (e.g. Paracetamol 500mg, twice daily for 5 days)..."
+            onChange={e => setPrescriptions({ ...prescriptions, [appt.id]: e.target.value })}
             style={{ width: '100%', marginTop: 8, marginBottom: 8 }}
             rows={2}
           />
