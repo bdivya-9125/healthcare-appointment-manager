@@ -5,61 +5,149 @@ export default function DoctorDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [notes, setNotes] = useState({});
   const [prescriptions, setPrescriptions] = useState({});
+  const [aiSummaries, setAiSummaries] = useState({});
+  const [aiLoading, setAiLoading] = useState({});
 
-  const loadAppointments = () => {
-    api.get('/doctor/appointments')
-      .then(res => {
-        setAppointments(res.data.appointments || []);
-      })
-      .catch(err => {
-        console.error('Failed to load appointments:', err);
-        alert(err.response?.data?.error || 'Failed to load appointments');
+  // ==========================================
+  // LOAD APPOINTMENTS
+  // ==========================================
+  const loadAppointments = async () => {
+    try {
+      const res = await api.get('/doctor/appointments');
+
+      const data = res.data.appointments || [];
+
+      setAppointments(data);
+
+      // Start AI requests AFTER appointments
+      // have already been displayed.
+      data.forEach((appointment) => {
+        loadAISummary(appointment);
       });
+
+    } catch (err) {
+      console.error(
+        'Failed to load appointments:',
+        err
+      );
+
+      alert(
+        err.response?.data?.error ||
+        'Failed to load appointments'
+      );
+    }
   };
 
+
+  // ==========================================
+  // LOAD AI SUMMARY FOR ONE APPOINTMENT
+  // ==========================================
+  const loadAISummary = async (appointment) => {
+    const id = appointment.id;
+
+    // If already available from database
+    if (appointment.pre_visit_summary) {
+      let summary = appointment.pre_visit_summary;
+
+      if (typeof summary === 'string') {
+        try {
+          summary = JSON.parse(summary);
+        } catch {
+          summary = null;
+        }
+      }
+
+      if (summary) {
+        setAiSummaries((prev) => ({
+          ...prev,
+          [id]: summary
+        }));
+
+        return;
+      }
+    }
+
+    // No symptoms
+    if (!appointment.symptom_form) {
+      return;
+    }
+
+    setAiLoading((prev) => ({
+      ...prev,
+      [id]: true
+    }));
+
+    try {
+      const res = await api.get(
+        `/doctor/appointments/${id}/pre-visit-summary`
+      );
+
+      if (res.data.summary) {
+        setAiSummaries((prev) => ({
+          ...prev,
+          [id]: res.data.summary
+        }));
+      }
+
+    } catch (err) {
+      console.error(
+        `AI summary failed for appointment ${id}:`,
+        err
+      );
+
+    } finally {
+      setAiLoading((prev) => ({
+        ...prev,
+        [id]: false
+      }));
+    }
+  };
+
+
+  // ==========================================
+  // INITIAL LOAD
+  // ==========================================
   useEffect(() => {
     loadAppointments();
   }, []);
 
+
+  // ==========================================
+  // COMPLETE VISIT
+  // ==========================================
   const completeVisit = async (id) => {
     try {
-      await api.post(`/doctor/appointments/${id}/complete`, {
-        notes: notes[id] || '',
-        prescription: prescriptions[id] || '',
-      });
+      await api.post(
+        `/doctor/appointments/${id}/complete`,
+        {
+          notes: notes[id] || '',
+          prescription: prescriptions[id] || ''
+        }
+      );
 
       alert('Visit completed');
+
       loadAppointments();
+
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed');
+      alert(
+        err.response?.data?.error ||
+        'Failed to complete visit'
+      );
     }
   };
 
-  const urgencyColor = (u) => {
-    if (u === 'High') return '#dc2626';
-    if (u === 'Medium') return '#d97706';
+
+  // ==========================================
+  // URGENCY COLOR
+  // ==========================================
+  const urgencyColor = (urgency) => {
+    if (urgency === 'High') return '#dc2626';
+    if (urgency === 'Medium') return '#d97706';
+
     return '#059669';
   };
 
-  // Handle both object and JSON-string formats
-  const getPreVisitSummary = (summary) => {
-    if (!summary) return null;
-
-    if (typeof summary === 'object') {
-      return summary;
-    }
-
-    if (typeof summary === 'string') {
-      try {
-        return JSON.parse(summary);
-      } catch (err) {
-        console.error('Invalid pre_visit_summary JSON:', err);
-        return null;
-      }
-    }
-
-    return null;
-  };
 
   return (
     <div
@@ -67,13 +155,20 @@ export default function DoctorDashboard() {
         maxWidth: 800,
         margin: '0 auto',
         padding: '40px 20px',
-        fontFamily: 'sans-serif',
+        fontFamily: 'sans-serif'
       }}
     >
+
       <h2>Doctor Dashboard</h2>
 
+
+      {/* =====================================
+          APPOINTMENTS
+      ===================================== */}
+
       {appointments.map((appt) => {
-        const summary = getPreVisitSummary(appt.pre_visit_summary);
+
+        const summary = aiSummaries[appt.id];
 
         return (
           <div
@@ -83,174 +178,250 @@ export default function DoctorDashboard() {
               borderRadius: 12,
               padding: 20,
               marginBottom: 16,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+              boxShadow:
+                '0 4px 20px rgba(0,0,0,0.06)'
             }}
           >
-            {/* Patient and urgency */}
+
+            {/* PATIENT */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
+                alignItems: 'center'
               }}
             >
+
               <b>{appt.patient_name}</b>
 
               {summary?.urgency && (
                 <span
                   style={{
-                    color: urgencyColor(summary.urgency),
-                    fontWeight: 700,
+                    color:
+                      urgencyColor(
+                        summary.urgency
+                      ),
+                    fontWeight: 700
                   }}
                 >
                   {summary.urgency} urgency
                 </span>
               )}
+
             </div>
 
-            {/* Appointment time */}
+
+            {/* TIME */}
             <p
               style={{
                 color: '#64748b',
-                margin: '4px 0',
+                margin: '4px 0'
               }}
             >
-              {new Date(appt.start_time).toLocaleString()}
+              {new Date(
+                appt.start_time
+              ).toLocaleString()}
             </p>
 
-            {/* Symptoms */}
+
+            {/* SYMPTOMS */}
             <p>
-              <b>Symptoms:</b> {appt.symptom_form}
+              <b>Symptoms:</b>{' '}
+              {appt.symptom_form}
             </p>
 
-            {/* AI Pre-Visit Summary */}
-            {summary && (
-              <div
+
+            {/* =================================
+                AI SUMMARY
+            ================================= */}
+
+            <div
+              style={{
+                background: '#f0f9ff',
+                border:
+                  '1px solid #bae6fd',
+                borderRadius: 10,
+                padding: 15,
+                margin: '12px 0 16px'
+              }}
+            >
+
+              <h4
                 style={{
-                  background: '#f0f9ff',
-                  border: '1px solid #bae6fd',
-                  borderRadius: 10,
-                  padding: 15,
-                  margin: '12px 0 16px',
+                  marginTop: 0,
+                  color: '#0369a1'
                 }}
               >
-                <h4
+                AI Pre-Visit Summary
+              </h4>
+
+
+              {/* LOADING */}
+              {aiLoading[appt.id] && (
+                <p
                   style={{
-                    marginTop: 0,
-                    marginBottom: 12,
-                    color: '#0369a1',
+                    color: '#64748b'
                   }}
                 >
-                  AI Pre-Visit Summary
-                </h4>
+                  🤖 Generating AI summary...
+                </p>
+              )}
 
-                {/* Urgency */}
-                {summary.urgency && (
-                  <p>
-                    <b>Urgency:</b>{' '}
-                    <span
-                      style={{
-                        color: urgencyColor(summary.urgency),
-                        fontWeight: 700,
-                      }}
-                    >
-                      {summary.urgency}
-                    </span>
+
+              {/* SUMMARY */}
+              {!aiLoading[appt.id] &&
+                summary && (
+                  <>
+
+                    {summary.urgency && (
+                      <p>
+                        <b>Urgency:</b>{' '}
+
+                        <span
+                          style={{
+                            color:
+                              urgencyColor(
+                                summary.urgency
+                              ),
+                            fontWeight: 700
+                          }}
+                        >
+                          {summary.urgency}
+                        </span>
+                      </p>
+                    )}
+
+
+                    {summary.chief_complaint && (
+                      <p>
+                        <b>
+                          Chief Complaint:
+                        </b>{' '}
+
+                        {summary.chief_complaint}
+                      </p>
+                    )}
+
+
+                    {Array.isArray(
+                      summary.questions
+                    ) &&
+                      summary.questions.length >
+                        0 && (
+                        <div>
+
+                          <b>
+                            Suggested Questions
+                            for Doctor:
+                          </b>
+
+                          <ol>
+                            {summary.questions.map(
+                              (
+                                question,
+                                index
+                              ) => (
+                                <li
+                                  key={index}
+                                  style={{
+                                    marginBottom: 5
+                                  }}
+                                >
+                                  {question}
+                                </li>
+                              )
+                            )}
+                          </ol>
+
+                        </div>
+                      )}
+
+                  </>
+                )}
+
+
+              {/* FAILED / EMPTY */}
+              {!aiLoading[appt.id] &&
+                !summary && (
+                  <p
+                    style={{
+                      color: '#64748b'
+                    }}
+                  >
+                    AI summary unavailable.
                   </p>
                 )}
 
-                {/* Chief complaint */}
-                {summary.chief_complaint && (
-                  <p>
-                    <b>Chief Complaint:</b>{' '}
-                    {summary.chief_complaint}
-                  </p>
-                )}
+            </div>
 
-                {/* Suggested questions */}
-                {Array.isArray(summary.questions) &&
-                  summary.questions.length > 0 && (
-                    <div>
-                      <b>Suggested Questions for Doctor:</b>
 
-                      <ol style={{ marginTop: 8 }}>
-                        {summary.questions.map((question, index) => (
-                          <li key={index} style={{ marginBottom: 5 }}>
-                            {question}
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-              </div>
-            )}
+            {/* =================================
+                VISIT NOTES
+            ================================= */}
 
-            {/* If AI summary is missing */}
-            {!summary && (
-              <div
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 10,
-                  padding: 12,
-                  margin: '12px 0 16px',
-                  color: '#64748b',
-                }}
-              >
-                AI pre-visit summary is not available for this
-                appointment.
-              </div>
-            )}
-
-            {/* Visit notes */}
             <textarea
               placeholder="Enter visit notes..."
               value={notes[appt.id] || ''}
               onChange={(e) =>
                 setNotes({
                   ...notes,
-                  [appt.id]: e.target.value,
+                  [appt.id]: e.target.value
                 })
               }
+              rows={3}
               style={{
                 width: '100%',
                 marginTop: 8,
                 marginBottom: 8,
                 padding: 12,
                 borderRadius: 8,
-                border: '1px solid #cbd5e1',
+                border:
+                  '1px solid #cbd5e1',
                 boxSizing: 'border-box',
-                fontFamily: 'inherit',
+                fontFamily: 'inherit'
               }}
-              rows={3}
             />
 
-            {/* Prescription */}
+
+            {/* =================================
+                PRESCRIPTION
+            ================================= */}
+
             <textarea
               placeholder="Enter prescription (e.g. Paracetamol 500mg, twice daily for 5 days)..."
-              value={prescriptions[appt.id] || ''}
+              value={
+                prescriptions[appt.id] || ''
+              }
               onChange={(e) =>
                 setPrescriptions({
                   ...prescriptions,
-                  [appt.id]: e.target.value,
+                  [appt.id]:
+                    e.target.value
                 })
               }
+              rows={3}
               style={{
                 width: '100%',
                 marginTop: 8,
                 marginBottom: 8,
                 padding: 12,
                 borderRadius: 8,
-                border: '1px solid #cbd5e1',
+                border:
+                  '1px solid #cbd5e1',
                 boxSizing: 'border-box',
-                fontFamily: 'inherit',
+                fontFamily: 'inherit'
               }}
-              rows={3}
             />
 
-            {/* Complete visit */}
+
+            {/* =================================
+                COMPLETE VISIT
+            ================================= */}
+
             <button
-              onClick={() => completeVisit(appt.id)}
+              onClick={() =>
+                completeVisit(appt.id)
+              }
               style={{
                 background: '#2563eb',
                 color: 'white',
@@ -258,20 +429,29 @@ export default function DoctorDashboard() {
                 borderRadius: 8,
                 padding: '12px 20px',
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: 'pointer'
               }}
             >
               Complete Visit
             </button>
+
           </div>
         );
       })}
 
+
+      {/* NO APPOINTMENTS */}
+
       {appointments.length === 0 && (
-        <p style={{ color: '#94a3b8' }}>
+        <p
+          style={{
+            color: '#94a3b8'
+          }}
+        >
           No confirmed appointments.
         </p>
       )}
+
     </div>
   );
 }
