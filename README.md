@@ -155,6 +155,11 @@ Email notifications are integrated with:
 | Deployment      | Netlify + Railway     |
 
 ---
+## Development Tools
+
+- Postman — API testing
+- Git & GitHub — Version control
+- VS Code — Development
 
 ## API Overview
 
