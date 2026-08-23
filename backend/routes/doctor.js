@@ -14,8 +14,8 @@ const { scheduleReminders } = require('../utils/scheduleReminders');
 
 // =====================================================
 // GET DOCTOR APPOINTMENTS
-// IMPORTANT: Do NOT call Gemini here.
-// This makes the dashboard load immediately.
+// Fast endpoint.
+// Gemini is NOT called here.
 // =====================================================
 router.get(
   '/appointments',
@@ -51,15 +51,16 @@ router.get(
         [doctorId]
       );
 
-      // Return immediately.
-      // Gemini is NOT called here.
       res.json({
         success: true,
         appointments: result.rows
       });
 
     } catch (err) {
-      console.error('Doctor appointments error:', err);
+      console.error(
+        'Doctor appointments error:',
+        err
+      );
 
       res.status(500).json({
         error: err.message
@@ -70,7 +71,8 @@ router.get(
 
 
 // =====================================================
-// GET AI PRE-VISIT SUMMARY FOR ONE APPOINTMENT
+// GET AI PRE-VISIT SUMMARY
+// Gemini is called only for this appointment.
 // =====================================================
 router.get(
   '/appointments/:id/pre-visit-summary',
@@ -80,7 +82,13 @@ router.get(
     try {
       const appointmentId = req.params.id;
 
-      // Get appointment + verify it belongs to this doctor
+      console.log(
+        `AI summary request received for appointment ${appointmentId}`
+      );
+
+      // -------------------------------------------------
+      // Get appointment and verify doctor ownership
+      // -------------------------------------------------
       const result = await pool.query(
         `SELECT
            a.id,
@@ -103,43 +111,103 @@ router.get(
 
       const appointment = result.rows[0];
 
-      // Already generated? Return it immediately.
-      if (appointment.pre_visit_summary) {
-        let summary = appointment.pre_visit_summary;
-
-        if (typeof summary === 'string') {
-          try {
-            summary = JSON.parse(summary);
-          } catch {
-            summary = null;
-          }
-        }
-
-        if (summary) {
-          return res.json({
-            success: true,
-            summary
-          });
-        }
-      }
-
+      // -------------------------------------------------
+      // No symptoms
+      // -------------------------------------------------
       if (!appointment.symptom_form) {
+        console.log(
+          `No symptoms for appointment ${appointmentId}`
+        );
+
         return res.json({
           success: true,
           summary: null
         });
       }
 
+      // -------------------------------------------------
+      // Check existing AI summary
+      // -------------------------------------------------
+      let existingSummary =
+        appointment.pre_visit_summary;
+
+      if (typeof existingSummary === 'string') {
+        try {
+          existingSummary =
+            JSON.parse(existingSummary);
+        } catch (parseError) {
+          console.log(
+            `Existing summary is not valid JSON for appointment ${appointmentId}`
+          );
+
+          existingSummary = null;
+        }
+      }
+
+      // -------------------------------------------------
+      // IMPORTANT:
+      // Only reuse a REAL successful summary.
+      //
+      // Old failed summaries such as:
+      // {
+      //   "error": "...",
+      //   "status": "failed"
+      // }
+      //
+      // will NOT be reused.
+      // -------------------------------------------------
+      if (
+        existingSummary &&
+        typeof existingSummary === 'object' &&
+        !existingSummary.error &&
+        existingSummary.urgency &&
+        existingSummary.chief_complaint &&
+        Array.isArray(existingSummary.questions)
+      ) {
+        console.log(
+          `Using existing AI summary for appointment ${appointmentId}`
+        );
+
+        return res.json({
+          success: true,
+          summary: existingSummary
+        });
+      }
+
+      // -------------------------------------------------
+      // Generate new AI summary
+      // -------------------------------------------------
       console.log(
         `Generating AI summary for appointment ${appointmentId}`
       );
 
-      // Gemini is called ONLY for this appointment.
-      const summary = await getPreVisitSummary(
-        appointment.symptom_form
+      console.log(
+        `Symptoms: ${appointment.symptom_form}`
       );
 
-      // Save result
+      const summary =
+        await getPreVisitSummary(
+          appointment.symptom_form
+        );
+
+      // -------------------------------------------------
+      // Validate Gemini response
+      // -------------------------------------------------
+      if (
+        !summary ||
+        typeof summary !== 'object' ||
+        !summary.urgency ||
+        !summary.chief_complaint ||
+        !Array.isArray(summary.questions)
+      ) {
+        throw new Error(
+          'Gemini returned an invalid pre-visit summary'
+        );
+      }
+
+      // -------------------------------------------------
+      // Save successful summary
+      // -------------------------------------------------
       await pool.query(
         `UPDATE appointments
          SET pre_visit_summary = $1
@@ -154,6 +222,9 @@ router.get(
         `AI summary saved for appointment ${appointmentId}`
       );
 
+      // -------------------------------------------------
+      // Return summary
+      // -------------------------------------------------
       res.json({
         success: true,
         summary
@@ -162,11 +233,13 @@ router.get(
     } catch (err) {
       console.error(
         'Pre-visit AI error:',
-        err.message
+        err?.message || err
       );
 
       res.status(500).json({
-        error: err.message
+        error:
+          err?.message ||
+          'Failed to generate AI summary'
       });
     }
   }
@@ -182,9 +255,12 @@ router.post(
   requireRole('doctor'),
   async (req, res) => {
     try {
-      const { notes, prescription } = req.body;
+      const {
+        notes,
+        prescription
+      } = req.body;
 
-      if (!notes) {
+      if (!notes || !notes.trim()) {
         return res.status(400).json({
           error: 'notes required'
         });
@@ -193,17 +269,27 @@ router.post(
       let postVisitSummary =
         'Summary unavailable - please contact your doctor for details.';
 
-      // Generate post-visit AI summary
+      // -------------------------------------------------
+      // Generate patient-friendly post-visit summary
+      // -------------------------------------------------
       try {
+        console.log(
+          `Generating post-visit summary for appointment ${req.params.id}`
+        );
+
         postVisitSummary =
           await getPostVisitSummary(notes);
+
       } catch (llmErr) {
         console.error(
           'LLM post-visit summary failed:',
-          llmErr.message
+          llmErr?.message || llmErr
         );
       }
 
+      // -------------------------------------------------
+      // Update appointment
+      // -------------------------------------------------
       const result = await pool.query(
         `UPDATE appointments
          SET
@@ -216,7 +302,9 @@ router.post(
         [
           notes,
           prescription
-            ? JSON.stringify({ text: prescription })
+            ? JSON.stringify({
+                text: prescription
+              })
             : null,
           postVisitSummary,
           req.params.id
@@ -229,28 +317,44 @@ router.post(
         });
       }
 
-      const updatedAppointment = result.rows[0];
+      const updatedAppointment =
+        result.rows[0];
 
+      // -------------------------------------------------
       // Schedule medication reminders
+      // -------------------------------------------------
       if (prescription) {
         try {
           await scheduleReminders(pool, {
-            appointmentId: updatedAppointment.id,
-            patientId: updatedAppointment.patient_id,
-            prescriptionText: prescription,
+            appointmentId:
+              updatedAppointment.id,
+
+            patientId:
+              updatedAppointment.patient_id,
+
+            prescriptionText:
+              prescription,
+
             startTime: new Date()
           });
+
+          console.log(
+            `Medication reminders scheduled for appointment ${updatedAppointment.id}`
+          );
+
         } catch (reminderErr) {
           console.error(
             'Failed to schedule medication reminders:',
-            reminderErr.message
+            reminderErr?.message ||
+              reminderErr
           );
         }
       }
 
       res.json({
         success: true,
-        appointment: updatedAppointment
+        appointment:
+          updatedAppointment
       });
 
     } catch (err) {
@@ -260,7 +364,9 @@ router.post(
       );
 
       res.status(500).json({
-        error: err.message
+        error:
+          err?.message ||
+          'Failed to complete visit'
       });
     }
   }
