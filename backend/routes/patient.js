@@ -5,6 +5,7 @@ const redis = require('../redis');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { getPreVisitSummary } = require('../utils/llm');
+const { createCalendarEvent } = require('../utils/googleCalendar');
 
 router.get('/doctors', requireAuth, async (req, res) => {
   try {
@@ -106,7 +107,26 @@ router.post('/slots/:id/confirm', requireAuth, requireRole('patient'), async (re
       console.error('Booking confirmation email failed:', emailErr.message);
     }
 
-    res.json({ success: true, appointment: { ...apptRes.rows[0], pre_visit_summary: preVisitSummary } });
+    // Create Google Calendar event if patient has connected their calendar
+    try {
+      const userRes = await pool.query('SELECT google_tokens, email, name FROM users WHERE id=$1', [req.user.id]);
+      const userGoogleTokens = userRes.rows[0].google_tokens;
+      if (userGoogleTokens) {
+        const eventId = await createCalendarEvent(userGoogleTokens, {
+          summary: 'Doctor Appointment',
+          description: `Appointment booked. Symptoms: ${symptoms || 'N/A'}`,
+          startTime: slotRes.rows[0].start_time,
+          endTime: slotRes.rows[0].end_time,
+          attendeeEmail: userRes.rows[0].email
+        });
+        await pool.query('UPDATE appointments SET calendar_event_id=$1 WHERE id=$2', [eventId, apptRes.rows[0].id]);
+      }
+    } catch (calErr) {
+      console.error('Calendar event creation failed:', calErr.message);
+    }
+
+    const finalAppt = await pool.query('SELECT * FROM appointments WHERE id=$1', [apptRes.rows[0].id]);
+    res.json({ success: true, appointment: finalAppt.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505') {
