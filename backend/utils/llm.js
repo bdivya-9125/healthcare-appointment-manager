@@ -8,12 +8,19 @@ if (!apiKey) {
   throw new Error('LLM_API_KEY is missing');
 }
 
-console.log('Gemini API key loaded:', apiKey.substring(0, 6) + '...');
+console.log(
+  'Gemini API key loaded:',
+  apiKey.substring(0, 6) + '...'
+);
 
 const ai = new GoogleGenAI({
   apiKey
 });
 
+
+// =====================================================
+// GEMINI CALL WITH TIMEOUT + RETRY
+// =====================================================
 async function callWithTimeout(prompt, retries = 1) {
   let lastError;
 
@@ -25,23 +32,32 @@ async function callWithTimeout(prompt, retries = 1) {
 
       const result = await Promise.race([
         ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.6-flash',
           contents: prompt
         }),
 
         new Promise((_, reject) =>
           setTimeout(
-            () => reject(new Error('Gemini request timed out')),
+            () =>
+              reject(
+                new Error(
+                  'Gemini request timed out'
+                )
+              ),
             15000
           )
         )
       ]);
 
       if (!result || !result.text) {
-        throw new Error('Gemini returned an empty response');
+        throw new Error(
+          'Gemini returned an empty response'
+        );
       }
 
-      console.log('Gemini request successful');
+      console.log(
+        'Gemini request successful'
+      );
 
       return result.text;
 
@@ -54,6 +70,10 @@ async function callWithTimeout(prompt, retries = 1) {
       );
 
       if (attempt < retries) {
+        console.log(
+          'Retrying Gemini request...'
+        );
+
         await new Promise(resolve =>
           setTimeout(resolve, 1000)
         );
@@ -65,10 +85,9 @@ async function callWithTimeout(prompt, retries = 1) {
 }
 
 
-// ==========================================
+// =====================================================
 // PRE-VISIT AI SUMMARY
-// ==========================================
-
+// =====================================================
 async function getPreVisitSummary(symptoms) {
 
   const prompt = `
@@ -87,7 +106,7 @@ ${symptoms}
 
 Return ONLY valid JSON.
 
-Example:
+Use exactly this format:
 
 {
   "urgency": "Medium",
@@ -116,9 +135,13 @@ Example:
     const parsed = JSON.parse(cleaned);
 
     return {
-      urgency: parsed.urgency || 'Medium',
+      urgency:
+        parsed.urgency || 'Medium',
+
       chief_complaint:
-        parsed.chief_complaint || symptoms,
+        parsed.chief_complaint ||
+        symptoms,
+
       questions:
         Array.isArray(parsed.questions)
           ? parsed.questions.slice(0, 3)
@@ -139,10 +162,9 @@ Example:
 }
 
 
-// ==========================================
+// =====================================================
 // POST-VISIT AI SUMMARY
-// ==========================================
-
+// =====================================================
 async function getPostVisitSummary(notes) {
 
   const prompt = `
@@ -165,6 +187,9 @@ Keep the explanation clear and concise.
 }
 
 
+// =====================================================
+// EXPORT
+// =====================================================
 module.exports = {
   getPreVisitSummary,
   getPostVisitSummary
