@@ -1,97 +1,341 @@
-﻿# Healthcare Appointment & Follow-up Manager
+﻿For your submission, keep the README **clear and evaluator-friendly**. You don't need to put every implementation detail.
 
+I recommend pasting this **complete version** into `README.md`:
+
+````md
+# Healthcare Appointment & Follow-up Manager
 
 ## Live Demo
-- **App:** https://fascinating-manatee-0c33aa.netlify.app
+
+- **Application:** https://fascinating-manatee-0c33aa.netlify.app
 - **Backend API:** https://healthcare-appointment-manager-production-ed2d.up.railway.app
-- **Repo:** https://github.com/bdivya-9125/healthcare-appointment-manager
+- **GitHub Repository:** https://github.com/bdivya-9125/healthcare-appointment-manager
 
-A full-stack healthcare appointment platform with separate portals for patients, doctors, and admins. Patients can book appointments and share symptoms in advance, doctors get AI-generated pre-visit summaries and can submit post-visit notes, and both sides receive email and Google Calendar notifications.
+---
 
-A full-stack healthcare appointment platform with separate portals for patients, doctors, and admins. Patients can book appointments and share symptoms in advance, doctors get AI-generated pre-visit summaries and can submit post-visit notes, and both sides receive email and Google Calendar notifications.
+## Demo Credentials
 
-## Tech Stack
-- **Backend:** Node.js, Express
-- **Frontend:** React (Vite)
-- **Database:** PostgreSQL (Supabase)
-- **Cache/Locking:** Redis (Upstash)
-- **LLM:** Google Gemini API
-- **Email:** SendGrid
-- **Calendar:** Google Calendar API (OAuth 2.0)
-- **Auth:** JWT with role-based access control
+Use these test accounts to verify the deployed application.
 
-## Setup Guide
+### Admin
+- **Email:** `admin@test.com`
+- **Password:** `admin1234`
 
-### Backend
-1. `cd backend`
-2. `npm install`
-3. Copy `.env.example` to `.env` and fill in all values (see below)
-4. Run the SQL in `schema.sql` against your Postgres database
-5. `node server.js`
+### Doctor
+- **Email:** `drsmith@test.com`
+- **Password:** `doctor1234`
 
-### Frontend
-1. `cd frontend`
-2. `npm install`
-3. Create `.env` with `VITE_API_URL=http://localhost:5000`
-4. `npm run dev`
+### Patient
+- **Email:** `patient2@test.com`
+- **Password:** `test1234`
 
-## Environment Variables (.env.example)
-See `backend/.env.example` for the full list. Required variables:
-- `DATABASE_URL` - Postgres connection string (Supabase pooler recommended)
-- `REDIS_URL` - Upstash Redis connection string
-- `JWT_SECRET` - random secret string for signing JWTs
-- `LLM_API_KEY` - Google Gemini API key
-- `SENDGRID_API_KEY` - SendGrid API key
-- `SENDER_EMAIL` - verified SendGrid sender email
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` - Google Cloud OAuth credentials
+> These are demo credentials provided for evaluation purposes.
 
-## Google Calendar Setup
-1. Create a project in Google Cloud Console
-2. Enable the Google Calendar API
-3. Configure the OAuth consent screen (External, add test users)
-4. Create an OAuth Client ID (Web application) with redirect URI: `http://localhost:5000/auth/google/callback`
-5. Add the Client ID/Secret to `.env`
-6. Users connect their calendar via `GET /auth/google`, which returns a consent URL
+---
 
-## Database Schema
-See `schema.sql` for the full schema. Key tables: `users`, `doctors`, `doctor_leaves`, `slots`, `appointments`, `notifications_log`.
+## Overview
+
+Healthcare Appointment & Follow-up Manager is a full-stack healthcare appointment platform with separate portals for patients, doctors, and administrators.
+
+### Patient Features
+- User registration and login
+- Search doctors
+- View available appointment slots
+- Temporarily hold appointment slots
+- Book appointments
+- Submit symptoms before a visit
+- View appointment details
+
+### Doctor Features
+- Doctor login
+- View confirmed appointments
+- View AI-generated pre-visit summaries
+- Review patient symptoms
+- Add post-visit clinical notes
+- Add prescriptions
+- Generate patient-friendly post-visit summaries
+- Schedule medication reminders
+
+### Admin Features
+- Manage doctor profiles
+- Manage doctor availability
+- Mark doctors as unavailable
+- Generate appointment slots
+
+---
+
+## Key Features
+
+- Role-based authentication for patients, doctors, and admins
+- JWT-based authentication
+- Secure password hashing using bcrypt
+- Transaction-safe appointment booking
+- Redis-based temporary slot locking
+- Google Gemini AI integration
+- Google Calendar integration
+- PostgreSQL database
+- Background medication reminder processing
+- Email notification workflow
+
+---
+
+## AI Features
+
+### Pre-Visit AI Summary
+
+When a patient books an appointment and provides symptoms, Google Gemini analyzes the symptoms and generates:
+
+- Urgency level: Low, Medium, or High
+- Chief complaint
+- Exactly three suggested questions for the doctor
+
+### Post-Visit AI Summary
+
+After completing a visit, the doctor's clinical notes are converted into a patient-friendly summary containing:
+
+- What was discussed
+- Medication schedule
+- Follow-up steps
+
+AI failures are handled gracefully so that appointment booking and visit completion can continue even if the LLM service is temporarily unavailable.
+
+---
+
+## Medication Reminders
+
+When a doctor completes a visit with a prescription, medication reminder records are created in PostgreSQL.
+
+A background cron job periodically checks for due reminders and processes them.
+
+```text
+Doctor completes visit
+        ↓
+Prescription saved
+        ↓
+Medication reminders created
+        ↓
+Background reminder job
+        ↓
+Due reminder detected
+        ↓
+Patient notification
+````
+
+---
+
+## Google Calendar Integration
+
+The application supports Google Calendar OAuth 2.0 integration.
+
+When a patient has connected their Google Calendar, an appointment can be added to their calendar after booking.
+
+---
+
+## Email Notifications
+
+The application includes an email notification workflow using Resend.
+
+Email notifications are integrated with:
+
+* Appointment booking
+* Doctor appointment notifications
+* Medication reminders
+
+> The deployed Resend configuration currently uses the testing sender. Production email delivery to arbitrary recipient addresses requires a verified sending domain.
+
+---
+
+## Technology Stack
+
+| Component       | Technology            |
+| --------------- | --------------------- |
+| Frontend        | React + Vite          |
+| Backend         | Node.js + Express     |
+| Database        | PostgreSQL / Supabase |
+| Cache & Locking | Redis / Upstash       |
+| AI              | Google Gemini API     |
+| Authentication  | JWT + bcrypt          |
+| Calendar        | Google Calendar API   |
+| Email           | Resend                |
+| Deployment      | Netlify + Railway     |
+
+---
 
 ## API Overview
 
-### Auth
-- `POST /auth/signup` - register (patient/doctor/admin)
-- `POST /auth/login` - returns JWT
-- `GET /auth/google` - get Google OAuth consent URL (requires auth)
-- `GET /auth/google/callback` - OAuth callback, stores tokens
+### Authentication
 
-### Admin
-- `POST /admin/doctors` - create doctor profile
-- `PUT /admin/doctors/:id` - edit doctor profile
-- `GET /admin/doctors` - list/search doctors
-- `POST /admin/doctors/:id/leave` - mark doctor on leave, cancels affected appointments and notifies patients
-- `POST /admin/doctors/:id/generate-slots` - generate bookable slots from working hours
+* `POST /auth/signup` — Register a user
+* `POST /auth/login` — Authenticate a user and return JWT
+* `GET /auth/google` — Start Google Calendar OAuth
+* `GET /auth/google/callback` — Handle Google OAuth callback
 
 ### Patient
-- `GET /patient/doctors` - search doctors
-- `GET /patient/doctors/:id/slots` - view open slots
-- `POST /patient/slots/:id/hold` - hold a slot (5 min Redis lock)
-- `POST /patient/slots/:id/confirm` - confirm booking (transaction-safe), triggers LLM pre-visit summary, email, and calendar event
+
+* `GET /patient/doctors` — Search doctors
+* `GET /patient/doctors/:id/slots` — View available slots
+* `POST /patient/slots/:id/hold` — Temporarily hold a slot
+* `POST /patient/slots/:id/confirm` — Confirm an appointment
 
 ### Doctor
-- `GET /doctor/appointments` - view confirmed appointments with pre-visit summaries
-- `POST /doctor/appointments/:id/complete` - submit notes/prescription, triggers LLM post-visit summary
 
-## LLM Prompts Used
+* `GET /doctor/appointments` — View confirmed appointments
+* `GET /doctor/appointments/:id/pre-visit-summary` — Get AI pre-visit summary
+* `POST /doctor/appointments/:id/complete` — Complete a visit
 
-**Pre-visit summary:**
-> Analyse these symptoms and return: urgency level (Low / Medium / High), chief complaint, and three suggested questions for the doctor. Symptoms: <symptoms>
+### Admin
 
-**Post-visit summary:**
-> Convert these clinical notes into a patient-friendly summary with medication schedule and follow-up steps: <notes>
+* `POST /admin/doctors` — Create doctor profile
+* `PUT /admin/doctors/:id` — Update doctor profile
+* `GET /admin/doctors` — List/search doctors
+* `POST /admin/doctors/:id/leave` — Mark doctor unavailable
+* `POST /admin/doctors/:id/generate-slots` — Generate appointment slots
 
-Both calls have a 10-second timeout and graceful failure handling - if the LLM fails, the booking/visit-completion still succeeds, and the failure reason is logged in the database.
+---
 
-## Test Credentials
-- Admin: admin@test.com / admin1234
-- Doctor: drsmith@test.com / doctor1234
-- Patient: patient2@test.com / test1234
+## Database
+
+The application uses PostgreSQL.
+
+Main tables include:
+
+* `users`
+* `doctors`
+* `doctor_leaves`
+* `slots`
+* `appointments`
+* `medication_reminders`
+* `notifications_log`
+
+The complete database schema is available in:
+
+```text
+backend/schema.sql
+```
+
+---
+
+## Project Structure
+
+```text
+healthcare-appointment-manager/
+│
+├── backend/
+│   ├── jobs/
+│   ├── middleware/
+│   ├── routes/
+│   ├── utils/
+│   ├── db.js
+│   ├── redis.js
+│   ├── schema.sql
+│   └── server.js
+│
+├── frontend/
+│   └── src/
+│       ├── pages/
+│       ├── api.js
+│       └── App.jsx
+│
+└── README.md
+```
+
+---
+
+## Local Setup
+
+### Backend
+
+```bash
+cd backend
+npm install
+node server.js
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Create the required environment variables using the provided `.env.example` files.
+
+---
+
+## Environment Variables
+
+The following variables are required for the complete application:
+
+```text
+DATABASE_URL
+REDIS_URL
+JWT_SECRET
+LLM_API_KEY
+RESEND_API_KEY
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI
+```
+
+> Never commit `.env` files, API keys, database credentials, or other secrets to GitHub.
+
+---
+
+## Error Handling
+
+The application includes graceful handling for:
+
+* Invalid login credentials
+* Unavailable appointment slots
+* Concurrent slot booking
+* LLM/API failures
+* Email failures
+* Google Calendar failures
+* Database errors
+
+External-service failures are logged without unnecessarily preventing the core appointment workflow from completing.
+
+---
+
+## Evaluation Flow
+
+For a quick demonstration:
+
+1. Log in using the **Patient** credentials.
+2. Search for a doctor.
+3. Select an available appointment slot.
+4. Enter patient symptoms.
+5. Confirm the appointment.
+6. Verify the AI pre-visit summary.
+7. Log out and log in using the **Doctor** credentials.
+8. Open the appointment.
+9. Review the AI-generated pre-visit summary.
+10. Complete the visit with notes and a prescription.
+11. Verify that medication reminders are created.
+12. Google Calendar can be tested if the account is connected.
+
+---
+
+## Repository
+
+GitHub:
+
+[https://github.com/bdivya-9125/healthcare-appointment-manager](https://github.com/bdivya-9125/healthcare-appointment-manager)
+
+## Live Application
+
+[https://fascinating-manatee-0c33aa.netlify.app](https://fascinating-manatee-0c33aa.netlify.app)
+
+```
+
+### Before you paste it
+
+**Do these 3 things:**
+
+1. Replace your entire current `README.md` with the above.
+2. Make sure the three demo passwords are actually correct.
+3. **Do not put any API keys, Supabase passwords, Railway variables, or `.env` contents in the README.**
+
+Also, I deliberately changed **SendGrid → Resend** because your current code uses Resend.
+```
