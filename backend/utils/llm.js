@@ -4,12 +4,19 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.LLM_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-async function callWithTimeout(prompt) {
-  const result = await Promise.race([
-    model.generateContent(prompt),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('LLM timeout')), 10000))
-  ]);
-  return result.response.text();
+async function callWithTimeout(prompt, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const result = await Promise.race([
+        model.generateContent(prompt),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('LLM timeout')), 10000))
+      ]);
+      return result.response.text();
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
 }
 
 async function getPreVisitSummary(symptoms) {
