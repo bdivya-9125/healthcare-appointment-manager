@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@google/genai": "^2.18.0",
     "@google/generative-ai": "^0.24.1",
     "@sendgrid/mail": "^8.1.6",
     "bcrypt": "^6.0.0",
