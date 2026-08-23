@@ -324,13 +324,3 @@ GitHub:
 
 ```
 
-### Before you paste it
-
-**Do these 3 things:**
-
-1. Replace your entire current `README.md` with the above.
-2. Make sure the three demo passwords are actually correct.
-3. **Do not put any API keys, Supabase passwords, Railway variables, or `.env` contents in the README.**
-
-Also, I deliberately changed **SendGrid → Resend** because your current code uses Resend.
-```
