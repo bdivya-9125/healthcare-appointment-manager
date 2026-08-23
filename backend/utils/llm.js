@@ -3,7 +3,7 @@ require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
 
 if (!process.env.LLM_API_KEY) {
-  throw new Error('LLM_API_KEY is missing from backend/.env');
+  throw new Error('LLM_API_KEY is missing');
 }
 
 const ai = new GoogleGenAI({
@@ -47,12 +47,8 @@ async function callWithTimeout(prompt, retries = 2) {
       );
 
       if (attempt < retries) {
-        const delay = 1500 * (attempt + 1);
-
-        console.log(`Retrying LLM in ${delay}ms...`);
-
         await new Promise(resolve =>
-          setTimeout(resolve, delay)
+          setTimeout(resolve, 1500 * (attempt + 1))
         );
       }
     }
@@ -60,7 +56,6 @@ async function callWithTimeout(prompt, retries = 2) {
 
   throw lastError;
 }
-
 
 async function getPreVisitSummary(symptoms) {
   const prompt = `
@@ -73,7 +68,7 @@ Analyse these patient symptoms and return:
 Symptoms:
 ${symptoms}
 
-Respond ONLY with valid JSON in this exact format:
+Respond ONLY with valid JSON:
 
 {
   "urgency": "Low",
@@ -95,17 +90,8 @@ Respond ONLY with valid JSON in this exact format:
 
   console.log('Pre-visit LLM response:', text);
 
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    console.error('Failed to parse LLM JSON:', text);
-
-    throw new Error(
-      'LLM returned invalid JSON for pre-visit summary'
-    );
-  }
+  return JSON.parse(text);
 }
-
 
 async function getPostVisitSummary(notes) {
   const prompt = `
@@ -122,7 +108,6 @@ ${notes}
 
   return await callWithTimeout(prompt);
 }
-
 
 module.exports = {
   getPreVisitSummary,
