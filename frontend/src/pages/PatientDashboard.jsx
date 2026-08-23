@@ -8,9 +8,15 @@ export default function PatientDashboard() {
   const [symptoms, setSymptoms] = useState('');
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [message, setMessage] = useState('');
+  const [myAppointments, setMyAppointments] = useState([]);
+
+  const loadMyAppointments = () => {
+    api.get('/patient/appointments').then(res => setMyAppointments(res.data.appointments));
+  };
 
   useEffect(() => {
     api.get('/patient/doctors').then(res => setDoctors(res.data.doctors));
+    loadMyAppointments();
   }, []);
 
   const viewSlots = async (doctorId) => {
@@ -36,6 +42,7 @@ export default function PatientDashboard() {
       setSelectedSlot(null);
       setSymptoms('');
       viewSlots(selectedDoctor);
+      loadMyAppointments();
     } catch (err) {
       setMessage(err.response?.data?.error || 'Failed to confirm booking');
     }
@@ -87,6 +94,27 @@ export default function PatientDashboard() {
       )}
 
       {message && <div style={{ ...cardStyle, background: '#eff6ff', color: '#1e40af', fontWeight: 600 }}>{message}</div>}
+
+      <div style={cardStyle}>
+        <h3>My Appointments</h3>
+        {myAppointments.map(appt => (
+          <div key={appt.id} style={{ padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
+            <p><b>{new Date(appt.start_time).toLocaleString()}</b> — {appt.status}</p>
+            <p style={{ color: '#64748b' }}>Symptoms: {appt.symptom_form}</p>
+            {appt.post_visit_summary && (
+              <div style={{ background: '#f0fdf4', padding: 12, borderRadius: 8, marginTop: 8 }}>
+                <p><b>Visit Summary:</b> {appt.post_visit_summary}</p>
+              </div>
+            )}
+            {appt.prescription && (
+              <div style={{ background: '#fefce8', padding: 12, borderRadius: 8, marginTop: 8 }}>
+                <p><b>Prescription:</b> {appt.prescription.text || JSON.stringify(appt.prescription)}</p>
+              </div>
+            )}
+          </div>
+        ))}
+        {myAppointments.length === 0 && <p style={{ color: '#94a3b8' }}>No appointments yet.</p>}
+      </div>
     </div>
   );
 }
