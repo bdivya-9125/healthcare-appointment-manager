@@ -7,6 +7,7 @@ const adminRoutes = require('./routes/admin');
 const patientRoutes = require('./routes/patient');
 const doctorRoutes = require('./routes/doctor');
 const googleAuthRoutes = require('./routes/googleAuth');
+const { startReminderJob } = require('./jobs/reminderJob');
 
 const app = express();
 app.use(cors());
@@ -30,4 +31,7 @@ app.use('/patient', patientRoutes);
 app.use('/doctor', doctorRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  startReminderJob(pool);
+});

@@ -4,6 +4,7 @@ const pool = require('../db');
 const sendEmail = require('../utils/email');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const generateSlotsForDoctor = require('../utils/generateSlots');
+const { deleteCalendarEvent } = require('../utils/googleCalendar');
 
 // Create a doctor profile
 router.post('/doctors', requireAuth, requireRole('admin'), async (req, res) => {
@@ -56,7 +57,7 @@ router.get('/doctors', async (req, res) => {
   }
 });
 
-// Mark a doctor on leave — cancels affected appointments and notifies patients
+// Mark a doctor on leave — cancels affected appointments, deletes calendar events, and notifies patients
 router.post('/doctors/:id/leave', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     const { leave_date } = req.body;
@@ -76,7 +77,21 @@ router.post('/doctors/:id/leave', requireAuth, requireRole('admin'), async (req,
     );
 
     for (const appt of affected.rows) {
+      const apptDetail = await pool.query(
+        'SELECT a.calendar_event_id, u.google_tokens FROM appointments a JOIN users u ON a.patient_id = u.id WHERE a.id=$1',
+        [appt.id]
+      );
+      const { calendar_event_id, google_tokens } = apptDetail.rows[0];
+
       await pool.query('UPDATE appointments SET status=$1 WHERE id=$2', ['cancelled', appt.id]);
+
+      if (calendar_event_id && google_tokens) {
+        try {
+          await deleteCalendarEvent(google_tokens, calendar_event_id);
+        } catch (calErr) {
+          console.error('Calendar event deletion failed:', calErr.message);
+        }
+      }
 
       const emailResult = await sendEmail(
         appt.email,
