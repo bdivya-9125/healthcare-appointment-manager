@@ -1,8 +1,4 @@
-﻿For your submission, keep the README **clear and evaluator-friendly**. You don't need to put every implementation detail.
-
-I recommend pasting this **complete version** into `README.md`:
-
-````md
+﻿````md
 # Healthcare Appointment & Follow-up Manager
 
 ## Live Demo
