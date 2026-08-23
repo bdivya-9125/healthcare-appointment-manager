@@ -1,5 +1,13 @@
 ﻿# Healthcare Appointment & Follow-up Manager
 
+
+## Live Demo
+- **App:** https://fascinating-manatee-0c33aa.netlify.app
+- **Backend API:** https://healthcare-appointment-manager-production-ed2d.up.railway.app
+- **Repo:** https://github.com/bdivya-9125/healthcare-appointment-manager
+
+A full-stack healthcare appointment platform with separate portals for patients, doctors, and admins. Patients can book appointments and share symptoms in advance, doctors get AI-generated pre-visit summaries and can submit post-visit notes, and both sides receive email and Google Calendar notifications.
+
 A full-stack healthcare appointment platform with separate portals for patients, doctors, and admins. Patients can book appointments and share symptoms in advance, doctors get AI-generated pre-visit summaries and can submit post-visit notes, and both sides receive email and Google Calendar notifications.
 
 ## Tech Stack
